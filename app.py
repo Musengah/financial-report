@@ -1,26 +1,31 @@
-from flask import Flask
-from flask_login import LoginManager
-from models import db
+from flask import render_template, redirect, url_for, flash, request, Flask
+from flask_login import login_user, logout_user, login_required
+from werkzeug.security import check_password_hash
+from models import db, user
+from forms import LoginForm
 from routes import routes_bp
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cfrs.db'  # Use SQLite for simplicity
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'your-secret-key'  # Replace with a secure secret key
 
-db.init_app(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'routes.login'
+@routes_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = user.query.filter_by(username=form.username.data).first()
+        if user and check_password_hash(user.password, form.password.data):
+            login_user(user)
+            flash('Logged in successfully.')
+            return redirect(url_for('routes.dashboard'))
+        else:
+            flash('Invalid username or password.')
+    return render_template('login.html', form=form)
 
-@login_manager.user_loader
-def load_user(user_id):
-    from models import User
-    return User.query.get(int(user_id))
+@routes_bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully.')
+    return redirect(url_for('routes.login'))
 
-app.register_blueprint(routes_bp)
-
-with app.app_context():
-    db.create_all()
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
