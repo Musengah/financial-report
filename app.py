@@ -1,34 +1,26 @@
 from flask import Flask
+from flask_login import LoginManager
+from models import db
+from routes import routes_bp
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///cfrs.db'  # Use SQLite for simplicity
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'your-secret-key'  # Replace with a secure secret key
 
-@app.route('/')
-def home():
-    return "Welcome to the Flask app!"
+db.init_app(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'routes.login'
 
-@app.route('/reports', methods=['GET', 'POST'])
-def reports():
-    pass
+@login_manager.user_loader
+def load_user(user_id):
+    from models import User
+    return User.query.get(int(user_id))
 
-@app.route('/reports/<int:report_id>', methods=['GET', 'PUT', 'DELETE'])
-def report_detail(report_id):
-    pass
+app.register_blueprint(routes_bp)
 
-@app.route('/users', methods=['GET', 'POST'])
-def users():
-    pass
-
-@app.route('/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-def user_detail(user_id):
-    pass
-
-@app.route('/login', methods=['POST'])
-def login():
-    pass
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    pass
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(debug=True)
